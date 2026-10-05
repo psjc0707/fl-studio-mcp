@@ -32,11 +32,10 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
-# Offline AST backend
+# Offline backend (custom FLP writer; pyflp 2.2.1 is broken on FL Studio 26)
 from fl_pyflp_backend import (  # type: ignore
-    HAS_PYFLP,
+    new_project as pyflp_create_blank,
     open_project as pyflp_open,
-    create_blank_project as pyflp_create_blank,
     get_state as pyflp_state,
     set_bpm as pyflp_set_bpm,
     set_mixer as pyflp_set_mixer,
@@ -45,6 +44,7 @@ from fl_pyflp_backend import (  # type: ignore
     save as pyflp_save,
     inspect as pyflp_inspect,
 )
+HAS_PYFLP = True  # backend always available now
 
 # Live MIDI bus
 try:
