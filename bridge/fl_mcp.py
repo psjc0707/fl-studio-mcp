@@ -60,7 +60,8 @@ TOOLS = [
     {"name": "fl_piano_arp",           "description": "Insert an arpeggio.",              "input_schema": {"type": "object", "properties": {"root": {"type": "string"}, "quality": {"type": "string"}, "octaves": {"type": "integer"}, "steps": {"type": "array", "items": {"type": "integer"}}, "rate": {"type": "number"}, "channel": {"type": "integer"}, "start": {"type": "number"}}, "required": ["root"]}},
     {"name": "fl_project_open",        "description": "Load a .flp file from disk (offline mode).", "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
     {"name": "fl_project_new",         "description": "Create a blank project in memory (offline mode).", "input_schema": {"type": "object", "properties": {"title": {"type": "string"}}, "required": []}},
-    {"name": "fl_project_save",        "description": "Save current project (offline mode).",      "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": []}},
+    {"name": "fl_project_save",        "description": "Save current project as .flp", "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": []}},
+    {"name": "fl_project_export_midi", "description": "Export current project as MIDI (.mid) — works with FL Studio File > Import MIDI", "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": []}},
     {"name": "fl_project_inspect",     "description": "Inspect any .flp file without opening it.",  "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
     {"name": "fl_get_state",           "description": "Snapshot of FL Studio state.",     "input_schema": {"type": "object", "properties": {}, "required": []}},
     {"name": "fl_get_health",          "description": "Liveness probe.",                  "input_schema": {"type": "object", "properties": {}, "required": []}},
@@ -84,6 +85,7 @@ def run_tool(name: str, args: dict) -> dict:
         "fl_project_open":     ("POST", "/project/open"),
         "fl_project_new":      ("POST", "/project/new"),
         "fl_project_save":     ("POST", "/project/save"),
+        "fl_project_export_midi": ("POST", "/project/export_midi"),
         "fl_get_state":        ("GET",  "/state"),
         "fl_get_health":       ("GET",  "/health"),
     }

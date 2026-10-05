@@ -43,6 +43,7 @@ from fl_pyflp_backend import (  # type: ignore
     clear_channel as pyflp_clear,
     save as pyflp_save,
     inspect as pyflp_inspect,
+    export_midi as pyflp_export_midi,
 )
 HAS_PYFLP = True  # backend always available now
 
@@ -240,6 +241,8 @@ class BridgeHandler(BaseHTTPRequestHandler):
             return self._json(200, pyflp_open(body.get("path", "")))
         if path == "/project/save":
             return self._json(200, pyflp_save(body.get("path")))
+        if path == "/project/export_midi":
+            return self._json(200, pyflp_export_midi(body.get("path", "ai_composed.mid")))
         if path == "/project/new":
             return self._json(200, pyflp_create_blank(body.get("title", "AI Composed")))
 

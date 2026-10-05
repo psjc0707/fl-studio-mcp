@@ -6,6 +6,7 @@ has no members for the new format. This module works around it by:
   - Tracking project state in Python (channels, patterns, notes)
   - Writing .flp files using our minimal FLPWriter
   - Reading .flp files with our FLP minimal parser as best-effort
+  - Exporting to MIDI format (.mid) as a reliable alternative
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from fl_writer import FLPWriter  # type: ignore
+from fl_midi_writer import MIDIWriter  # type: ignore
 
 # Lock for the in-memory project
 _project_lock = threading.RLock()
@@ -143,6 +145,43 @@ def save(path: str | None = None) -> dict:
             return {"ok": True, "saved_to": target, "size_bytes": os.path.getsize(target)}
         except Exception as exc:
             return {"ok": False, "error": f"save failed: {exc}"}
+
+
+def export_midi(path: str) -> dict:
+    """Export current project as a standard MIDI file (.mid).
+
+    MIDI is universally importable in FL Studio (File > Import MIDI) and bypasses
+    all the .flp binary format issues with newer FL versions.
+    """
+    with _project_lock:
+        if not _state["loaded"]:
+            return {"ok": False, "error": "no project loaded"}
+        try:
+            mw = MIDIWriter(ppq=_state["ppq"], bpm=_state["bpm"])
+            mw.set_tempo(_state["bpm"])
+            # Group notes by channel (MIDI channel = mixer track index)
+            for pat in _state["patterns"]:
+                for note in pat["notes"]:
+                    mw.note(
+                        channel=note["channel"],
+                        pitch=note["pitch"],
+                        start_beat=note["start"],
+                        length_beats=note["length"],
+                        velocity=note["velocity"],
+                    )
+            p = Path(path)
+            if not p.suffix:
+                p = p.with_suffix(".mid")
+            mw.save(p)
+            return {
+                "ok": True,
+                "saved_to": str(p),
+                "format": "MIDI SMF 0",
+                "size_bytes": os.path.getsize(p),
+                "note": "open in FL Studio via File > Import MIDI",
+            }
+        except Exception as exc:
+            return {"ok": False, "error": f"midi export failed: {exc}"}
 
 
 def inspect(path: str) -> dict:

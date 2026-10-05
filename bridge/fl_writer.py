@@ -26,21 +26,21 @@ class FLPWriter:
         self.ppq = ppq
         self._channels: list[dict] = []
         self._patterns: list[dict] = []
-        # next channel index
         self._next_chan = 0
-        # FL Studio event tree root
         self._events_root: list[bytes] = []
-        # Pre-fill header info
-        self._events_root.append(self._evt_u16(199, 0x0001))   # FLVersion
-        self._events_root.append(self._evt_text(195, title))                # Title
-        self._events_root.append(self._evt_u16(10, ppq))                    # PPQ
-        # Tempo coarse + fine (event ID 129 = TempoCoarse, 130 = TempoFine in FL docs)
-        # Actually FL uses 0x42 (66) for Tempo Coarse and 0x5D (93) for Tempo Fine
-        # Coarse: BPM integer, Fine: BPM * 1000 fractional part
+        # FL Studio 21+ format observed from real .flp files:
+        #   First event after FLhd is FLVersion with ASCII version string.
+        # We mark our files as FL Studio 26.x.x for compatibility.
+        self._events_root.append(self._evt_text(199, "26.1.2.5557\x00"))
+        # Title - but real FL puts title as UTF-16 in event 0x00 (size_byte=0x80)
+        # Skip for now; FL accepts missing title.
+        # PPQ (event ID 10)
+        self._events_root.append(self._evt_u16(10, ppq))
+        # Tempo coarse + fine (event ID 66 = 0x42, 93 = 0x5D)
         coarse = int(bpm)
         fine = int((bpm - coarse) * 1000)
-        self._events_root.append(self._evt_u16(66, coarse))   # TempoCoarse
-        self._events_root.append(self._evt_u16(93, fine))     # TempoFine
+        self._events_root.append(self._evt_u16(66, coarse))
+        self._events_root.append(self._evt_u16(93, fine))
 
     # ------------------------------------------------------------------ helpers
     @staticmethod
@@ -62,7 +62,7 @@ class FLPWriter:
             raw = raw[:255]
         # size with high bit set means 4-byte size follows
         if len(raw) > 0x7F:
-            return bytes([id_, 0x80 | 0x01]) + struct.pack("<I", len(raw)) + raw
+            return bytes([id_, 0x80]) + struct.pack("<I", len(raw)) + raw
         return bytes([id_, len(raw)]) + raw
 
     @staticmethod
@@ -143,16 +143,24 @@ class FLPWriter:
         return bytes([0x80]) + struct.pack("<I", n)
 
     def to_bytes(self) -> bytes:
-        """Build the complete .flp file."""
+        """Build the complete .flp file (FL Studio 21+ format).
+
+        Format observed from real .flp files:
+          [FLhd 14 bytes][FLdt chunk 8 bytes][event tree][end marker]
+        The FLdt chunk is 'FLdt' magic + 4 bytes of version/timestamp data.
+        """
         out = bytearray()
-        # Header: FLhd + type(6) + channel(0) + flags(0) + PPQ + events_offset
+        # Header: 14 bytes
         out += b"FLhd"
-        out += struct.pack("<HHHHI", 6, 0, 0, self.ppq, 0)
+        # Real FLP layout: type=6, channel=0, flags=0, 0x0005 (channel count?), ppq=96
+        out += struct.pack("<HHHHH", 6, 0, 0, 5, self.ppq)
+        # FLdt chunk: 8 bytes (4 magic + 4 data bytes)
+        out += b"FLdt"
+        out += struct.pack("<I", 0x0000D037)  # version/data marker from real files
         # Event tree body
-        out += b"FLst"
         for evt in self._events_root:
             out += evt
-        # End of project (event ID 0xFF = 255)
+        # End marker
         out += bytes([0xFF, 0x00])
         return bytes(out)
 
